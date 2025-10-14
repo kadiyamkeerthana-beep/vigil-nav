@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RouteOption } from "@/data/mockData";
-import { Clock, MapPin, Shield, Navigation, AlertTriangle } from "lucide-react";
+import { Clock, MapPin, Navigation, AlertTriangle, Sun, Users } from "lucide-react";
 
 interface RouteCardProps {
   route: RouteOption;
@@ -48,14 +48,22 @@ const RouteCard = ({ route, isSelected, onSelect }: RouteCardProps) => {
             <h3 className={`text-lg font-semibold ${getTypeColor(route.type)}`}>
               {route.name}
             </h3>
-            <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+            <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
-                <Clock className="w-4 h-4" />
+                <Clock className="w-3 h-3" />
                 <span>{route.duration}</span>
               </div>
               <div className="flex items-center gap-1">
-                <MapPin className="w-4 h-4" />
+                <MapPin className="w-3 h-3" />
                 <span>{route.distance}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Sun className="w-3 h-3 text-yellow-500" />
+                <span>{route.lightingScore}%</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Users className="w-3 h-3 text-purple-500" />
+                <span className="capitalize">{route.crowdDensity}</span>
               </div>
             </div>
           </div>

@@ -1,3 +1,17 @@
+export interface LightingZone {
+  id: string;
+  coordinates: [number, number][];
+  intensity: 'dark' | 'dim' | 'bright';
+  type: 'zone';
+}
+
+export interface CrowdZone {
+  id: string;
+  location: [number, number];
+  density: 'low' | 'medium' | 'high';
+  radius: number;
+}
+
 export interface RouteOption {
   id: string;
   name: string;
@@ -8,6 +22,8 @@ export interface RouteOption {
   coordinates: [number, number][];
   hazards: Hazard[];
   features: string[];
+  lightingScore: number;
+  crowdDensity: 'low' | 'medium' | 'high';
 }
 
 export interface Hazard {
@@ -29,6 +45,65 @@ export interface SafetyFilter {
 
 // Mock center coordinates (New York City as example)
 export const CENTER_COORDS: [number, number] = [40.7128, -74.0060];
+
+// Mock lighting zones
+export const mockLightingZones: LightingZone[] = [
+  {
+    id: 'light-1',
+    coordinates: [
+      [40.7090, -74.0090],
+      [40.7090, -74.0070],
+      [40.7100, -74.0070],
+      [40.7100, -74.0090],
+    ],
+    intensity: 'dark',
+    type: 'zone'
+  },
+  {
+    id: 'light-2',
+    coordinates: [
+      [40.7140, -74.0060],
+      [40.7140, -74.0040],
+      [40.7155, -74.0040],
+      [40.7155, -74.0060],
+    ],
+    intensity: 'dim',
+    type: 'zone'
+  },
+  {
+    id: 'light-3',
+    coordinates: [
+      [40.7160, -74.0035],
+      [40.7160, -74.0015],
+      [40.7180, -74.0015],
+      [40.7180, -74.0035],
+    ],
+    intensity: 'bright',
+    type: 'zone'
+  },
+];
+
+// Mock crowd zones
+export const mockCrowdZones: CrowdZone[] = [
+  {
+    id: 'crowd-1',
+    location: [40.7145, -74.0045],
+    density: 'high',
+    radius: 100
+  },
+  {
+    id: 'crowd-2',
+    location: [40.7165, -74.0025],
+    density: 'medium',
+    radius: 80
+  },
+  {
+    id: 'crowd-3',
+    location: [40.7105, -74.0085],
+    density: 'low',
+    radius: 60
+  },
+];
 
 export const mockHazards: Hazard[] = [
   {
@@ -87,7 +162,9 @@ export const mockRoutes: RouteOption[] = [
       [40.7190, -74.0000],
     ],
     hazards: [],
-    features: ['Well-lit streets', 'Police patrol area', 'CCTV coverage']
+    features: ['Well-lit streets', 'Police patrol area', 'CCTV coverage'],
+    lightingScore: 95,
+    crowdDensity: 'medium'
   },
   {
     id: 'route-balanced',
@@ -104,7 +181,9 @@ export const mockRoutes: RouteOption[] = [
       [40.7190, -74.0000],
     ],
     hazards: [mockHazards[1]],
-    features: ['Moderate lighting', 'Some traffic']
+    features: ['Moderate lighting', 'Some traffic'],
+    lightingScore: 72,
+    crowdDensity: 'high'
   },
   {
     id: 'route-fast',
@@ -121,7 +200,9 @@ export const mockRoutes: RouteOption[] = [
       [40.7190, -74.0000],
     ],
     hazards: [mockHazards[0], mockHazards[1], mockHazards[3]],
-    features: ['Main roads', 'Heavy traffic']
+    features: ['Main roads', 'Heavy traffic'],
+    lightingScore: 58,
+    crowdDensity: 'high'
   },
 ];
 

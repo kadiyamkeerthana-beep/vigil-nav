@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { MapPin, Navigation, Shield } from "lucide-react";
+import { MapPin, Navigation, Shield, LogIn } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import heroMap from "@/assets/hero-map.jpg";
 
 interface HeroSectionProps {
@@ -7,6 +8,8 @@ interface HeroSectionProps {
 }
 
 const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
+  const navigate = useNavigate();
+  
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image with Overlay */}
@@ -44,19 +47,20 @@ const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
           <Button 
             size="lg"
-            onClick={onGetStarted}
+            onClick={() => navigate("/auth")}
             className="bg-gradient-hero hover:opacity-90 transition-opacity text-lg px-8 py-6 shadow-lg"
           >
-            <Navigation className="w-5 h-5 mr-2" />
-            Start Navigation
+            <LogIn className="w-5 h-5 mr-2" />
+            Get Started
           </Button>
           <Button 
             size="lg"
             variant="outline"
+            onClick={() => navigate("/auth")}
             className="text-lg px-8 py-6 bg-card/50 backdrop-blur-sm hover:bg-card/80"
           >
-            <MapPin className="w-5 h-5 mr-2" />
-            Learn More
+            <Navigation className="w-5 h-5 mr-2" />
+            Sign In
           </Button>
         </div>
 

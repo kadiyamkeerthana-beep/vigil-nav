@@ -14,7 +14,168 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      emergency_contacts: {
+        Row: {
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          id: string
+          relationship: string | null
+          user_id: string
+        }
+        Insert: {
+          contact_name: string
+          contact_phone: string
+          created_at?: string
+          id?: string
+          relationship?: string | null
+          user_id: string
+        }
+        Update: {
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          relationship?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      hazard_reports: {
+        Row: {
+          created_at: string
+          description: string
+          hazard_type: string
+          id: string
+          location_lat: number
+          location_lng: number
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          hazard_type: string
+          id?: string
+          location_lat: number
+          location_lng: number
+          severity: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          hazard_type?: string
+          id?: string
+          location_lat?: number
+          location_lng?: number
+          severity?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      saved_routes: {
+        Row: {
+          created_at: string
+          distance: string
+          duration: string
+          from_location: string
+          id: string
+          route_name: string
+          route_type: string
+          safety_score: number
+          to_location: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          distance: string
+          duration: string
+          from_location: string
+          id?: string
+          route_name: string
+          route_type: string
+          safety_score: number
+          to_location: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          distance?: string
+          duration?: string
+          from_location?: string
+          id?: string
+          route_name?: string
+          route_type?: string
+          safety_score?: number
+          to_location?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trip_history: {
+        Row: {
+          completed_at: string
+          distance: string
+          duration: string
+          from_location: string
+          id: string
+          route_type: string
+          safety_score: number
+          to_location: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          distance: string
+          duration: string
+          from_location: string
+          id?: string
+          route_type: string
+          safety_score: number
+          to_location: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          distance?: string
+          duration?: string
+          from_location?: string
+          id?: string
+          route_type?: string
+          safety_score?: number
+          to_location?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

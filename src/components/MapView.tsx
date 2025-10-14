@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { RouteOption, Hazard } from '@/data/mockData';
+import { RouteOption, Hazard, LightingZone, CrowdZone } from '@/data/mockData';
 
 interface MapViewProps {
   routes: RouteOption[];
   hazards: Hazard[];
   selectedRoute: RouteOption | null;
   center: [number, number];
+  lightingZones?: LightingZone[];
+  crowdZones?: CrowdZone[];
 }
 
 // Fix Leaflet default marker icon issue
@@ -18,11 +20,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-const MapView = ({ routes, hazards, selectedRoute, center }: MapViewProps) => {
+const MapView = ({ routes, hazards, selectedRoute, center, lightingZones = [], crowdZones = [] }: MapViewProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const routeLayers = useRef<L.Polyline[]>([]);
   const hazardLayers = useRef<L.Marker[]>([]);
+  const lightingLayers = useRef<L.Polygon[]>([]);
+  const crowdLayers = useRef<L.Circle[]>([]);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -109,6 +113,106 @@ const MapView = ({ routes, hazards, selectedRoute, center }: MapViewProps) => {
       }
     }
   }, [routes, selectedRoute]);
+
+  // Update lighting zones
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Clear existing lighting layers
+    lightingLayers.current.forEach(layer => layer.remove());
+    lightingLayers.current = [];
+
+    // Add lighting zones to map
+    lightingZones.forEach((zone) => {
+      if (!mapRef.current) return;
+
+      const colorMap = {
+        dark: '#1a1a1a',
+        dim: '#4a4a4a',
+        bright: '#ffd700',
+      };
+
+      const opacityMap = {
+        dark: 0.4,
+        dim: 0.25,
+        bright: 0.15,
+      };
+
+      const polygon = L.polygon(zone.coordinates, {
+        color: colorMap[zone.intensity],
+        fillColor: colorMap[zone.intensity],
+        fillOpacity: opacityMap[zone.intensity],
+        weight: 2,
+      }).addTo(mapRef.current);
+
+      // Add lighting icon
+      const center = polygon.getBounds().getCenter();
+      const lightIcon = L.divIcon({
+        html: zone.intensity === 'dark' 
+          ? '<div style="font-size: 24px;">🌙</div>' 
+          : zone.intensity === 'dim'
+          ? '<div style="font-size: 24px;">💡</div>'
+          : '<div style="font-size: 24px;">☀️</div>',
+        className: '',
+        iconSize: [24, 24],
+      });
+
+      L.marker(center, { icon: lightIcon })
+        .bindPopup(`
+          <div style="min-width: 120px;">
+            <div style="font-weight: bold; margin-bottom: 4px;">Lighting: ${zone.intensity.charAt(0).toUpperCase() + zone.intensity.slice(1)}</div>
+          </div>
+        `)
+        .addTo(mapRef.current);
+
+      lightingLayers.current.push(polygon);
+    });
+  }, [lightingZones]);
+
+  // Update crowd zones
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Clear existing crowd layers
+    crowdLayers.current.forEach(layer => layer.remove());
+    crowdLayers.current = [];
+
+    // Add crowd zones to map
+    crowdZones.forEach((zone) => {
+      if (!mapRef.current) return;
+
+      const colorMap = {
+        low: '#10b981',
+        medium: '#f59e0b',
+        high: '#ef4444',
+      };
+
+      const circle = L.circle(zone.location, {
+        color: colorMap[zone.density],
+        fillColor: colorMap[zone.density],
+        fillOpacity: 0.15,
+        radius: zone.radius,
+        weight: 2,
+      }).addTo(mapRef.current);
+
+      // Add crowd icon
+      const crowdIcon = L.divIcon({
+        html: '<div style="font-size: 24px;">👥</div>',
+        className: '',
+        iconSize: [24, 24],
+      });
+
+      L.marker(zone.location, { icon: crowdIcon })
+        .bindPopup(`
+          <div style="min-width: 120px;">
+            <div style="font-weight: bold; margin-bottom: 4px;">Crowd Density: ${zone.density.charAt(0).toUpperCase() + zone.density.slice(1)}</div>
+          </div>
+        `)
+        .addTo(mapRef.current);
+
+      crowdLayers.current.push(circle);
+    });
+  }, [crowdZones]);
 
   // Update hazards
   useEffect(() => {
