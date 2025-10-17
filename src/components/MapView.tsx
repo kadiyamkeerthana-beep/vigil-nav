@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { RouteOption, Hazard, LightingZone, CrowdZone } from '@/data/mockData';
+import { RouteOption, Hazard, LightingZone, CrowdZone, EmergencyService } from '@/data/mockData';
 
 interface MapViewProps {
   routes: RouteOption[];
@@ -10,6 +10,8 @@ interface MapViewProps {
   center: [number, number];
   lightingZones?: LightingZone[];
   crowdZones?: CrowdZone[];
+  emergencyServices?: EmergencyService[];
+  showEmergencyServices?: boolean;
 }
 
 // Fix Leaflet default marker icon issue
@@ -20,13 +22,14 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-const MapView = ({ routes, hazards, selectedRoute, center, lightingZones = [], crowdZones = [] }: MapViewProps) => {
+const MapView = ({ routes, hazards, selectedRoute, center, lightingZones = [], crowdZones = [], emergencyServices = [], showEmergencyServices = false }: MapViewProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const routeLayers = useRef<L.Polyline[]>([]);
   const hazardLayers = useRef<L.Marker[]>([]);
   const lightingLayers = useRef<L.Polygon[]>([]);
   const crowdLayers = useRef<L.Circle[]>([]);
+  const emergencyLayers = useRef<L.Marker[]>([]);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -264,6 +267,62 @@ const MapView = ({ routes, hazards, selectedRoute, center, lightingZones = [], c
       hazardLayers.current.push(marker);
     });
   }, [hazards]);
+
+  // Update emergency services
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Clear existing emergency layers
+    emergencyLayers.current.forEach(layer => layer.remove());
+    emergencyLayers.current = [];
+
+    // Only add emergency services if toggle is on
+    if (!showEmergencyServices) return;
+
+    // Add emergency services to map
+    emergencyServices.forEach((service) => {
+      if (!mapRef.current) return;
+
+      const serviceIcons = {
+        hospital: '🏥',
+        police: '👮',
+        fire: '🚒',
+        pharmacy: '💊',
+      };
+
+      const serviceColors = {
+        hospital: '#ef4444',
+        police: '#3b82f6',
+        fire: '#f97316',
+        pharmacy: '#10b981',
+      };
+
+      const icon = serviceIcons[service.type];
+      const color = serviceColors[service.type];
+
+      const emergencyIcon = L.divIcon({
+        html: `<div style="background-color: ${color}; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.4); font-size: 18px;">${icon}</div>`,
+        className: '',
+        iconSize: [36, 36],
+      });
+
+      const marker = L.marker(service.location, { icon: emergencyIcon })
+        .bindPopup(`
+          <div style="min-width: 180px;">
+            <div style="font-weight: bold; margin-bottom: 6px; font-size: 14px;">${service.name}</div>
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+              ${service.type.charAt(0).toUpperCase() + service.type.slice(1)}
+            </div>
+            ${service.contact ? `<div style="font-size: 12px; color: #333; margin-bottom: 4px;">📞 ${service.contact}</div>` : ''}
+            ${service.available24x7 ? '<div style="font-size: 11px; color: #10b981; font-weight: 600;">● Emergency 24/7</div>' : '<div style="font-size: 11px; color: #f59e0b;">⏰ Limited Hours</div>'}
+            <button onclick="window.location.href='tel:${service.contact}'" style="margin-top: 8px; width: 100%; padding: 6px 12px; background: ${color}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">Call Now</button>
+          </div>
+        `)
+        .addTo(mapRef.current);
+
+      emergencyLayers.current.push(marker);
+    });
+  }, [emergencyServices, showEmergencyServices]);
 
   return (
     <div 

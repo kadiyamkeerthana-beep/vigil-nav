@@ -5,11 +5,14 @@ import MapView from "@/components/MapView";
 import RouteCard from "@/components/RouteCard";
 import SafetyFilters from "@/components/SafetyFilters";
 import EmergencyButton from "@/components/EmergencyButton";
-import { mockRoutes, mockHazards, safetyFilters, CENTER_COORDS, mockLightingZones, mockCrowdZones } from "@/data/mockData";
+import { mockRoutes, mockHazards, safetyFilters, CENTER_COORDS, mockLightingZones, mockCrowdZones, mockEmergencyServices } from "@/data/mockData";
 import { RouteOption, SafetyFilter } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Layers, User } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Layers, User, Phone, MapPin } from "lucide-react";
 import { authHelpers, routeHelpers } from "@/lib/supabase";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,6 +22,9 @@ const Home = () => {
   const [selectedRoute, setSelectedRoute] = useState<RouteOption | null>(null);
   const [filters, setFilters] = useState<SafetyFilter[]>(safetyFilters);
   const [showFilters, setShowFilters] = useState(false);
+  const [showEmergencyServices, setShowEmergencyServices] = useState(false);
+  const [fromLocation, setFromLocation] = useState('');
+  const [toLocation, setToLocation] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -46,17 +52,35 @@ const Home = () => {
   }, [navigate]);
 
   const handleSearch = (from: string, to: string) => {
+    setFromLocation(from);
+    setToLocation(to);
+    
     toast({
       title: "Calculating Safe Routes",
       description: `Finding the safest path from ${from} to ${to}...`,
     });
 
     setTimeout(() => {
-      setRoutes(mockRoutes);
-      setSelectedRoute(mockRoutes[0]);
+      // Determine which route set to show based on locations
+      const searchKey = `${from.toLowerCase()}-${to.toLowerCase()}`;
+      let filteredRoutes: RouteOption[] = [];
+      
+      if (searchKey.includes('vignan') && searchKey.includes('gajuwaka')) {
+        filteredRoutes = mockRoutes.filter(r => r.id.includes('vignan-gajuwaka'));
+      } else if (searchKey.includes('simhachalam') && searchKey.includes('vignan')) {
+        filteredRoutes = mockRoutes.filter(r => r.id.includes('simhachalam-vignan'));
+      } else if (searchKey.includes('gajuwaka') && (searchKey.includes('beach') || searchKey.includes('rk'))) {
+        filteredRoutes = mockRoutes.filter(r => r.id.includes('gajuwaka-beach'));
+      } else {
+        // Default to first route set
+        filteredRoutes = mockRoutes.slice(0, 3);
+      }
+      
+      setRoutes(filteredRoutes);
+      setSelectedRoute(filteredRoutes[0]);
       toast({
         title: "Routes Found",
-        description: `${mockRoutes.length} route options available`,
+        description: `${filteredRoutes.length} route options available`,
       });
     }, 1000);
   };
@@ -83,8 +107,8 @@ const Home = () => {
     const { error } = await routeHelpers.saveRoute({
       user_id: user.id,
       route_name: selectedRoute.name,
-      from_location: "Start Location",
-      to_location: "End Location",
+      from_location: fromLocation || "Start Location",
+      to_location: toLocation || "End Location",
       route_type: selectedRoute.type,
       safety_score: selectedRoute.safetyScore,
       duration: selectedRoute.duration,
@@ -110,8 +134,8 @@ const Home = () => {
 
     const { error } = await routeHelpers.addTripHistory({
       user_id: user.id,
-      from_location: "Start Location",
-      to_location: "End Location",
+      from_location: fromLocation || "Start Location",
+      to_location: toLocation || "End Location",
       route_type: selectedRoute.type,
       safety_score: selectedRoute.safetyScore,
       duration: selectedRoute.duration,
@@ -194,7 +218,34 @@ const Home = () => {
                 Enter your destination and we'll find the safest route for you
               </p>
             </div>
-            <SearchBar onSearch={handleSearch} />
+            <div className="w-full max-w-2xl">
+              <SearchBar onSearch={handleSearch} />
+              
+              {/* Quick Route Suggestions */}
+              <div className="mt-6 text-center">
+                <p className="text-sm text-muted-foreground mb-3">Try these popular routes:</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <button
+                    onClick={() => handleSearch('Vignan College, Vadlapudi', 'Gajuwaka, Visakhapatnam')}
+                    className="text-sm px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-full transition-colors"
+                  >
+                    Vignan → Gajuwaka
+                  </button>
+                  <button
+                    onClick={() => handleSearch('Simhachalam Temple', 'Vignan College, Vadlapudi')}
+                    className="text-sm px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-full transition-colors"
+                  >
+                    Simhachalam → Vignan
+                  </button>
+                  <button
+                    onClick={() => handleSearch('Gajuwaka', 'RK Beach, Visakhapatnam')}
+                    className="text-sm px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-full transition-colors"
+                  >
+                    Gajuwaka → RK Beach
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -234,8 +285,72 @@ const Home = () => {
               )}
             </div>
 
-            <div className="lg:col-span-2 order-1 lg:order-2">
-              <div className="sticky top-24 h-[calc(100vh-120px)] min-h-[500px]">
+            <div className="lg:col-span-2 order-1 lg:order-2 space-y-4">
+              {/* Emergency Services Toggle */}
+              <Card className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Phone className="h-5 w-5 text-destructive" />
+                    <div>
+                      <Label htmlFor="emergency-toggle" className="text-sm font-semibold cursor-pointer">
+                        Show Emergency Services
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Hospitals, Police, Fire Stations, Pharmacies
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="emergency-toggle"
+                    checked={showEmergencyServices}
+                    onCheckedChange={setShowEmergencyServices}
+                  />
+                </div>
+              </Card>
+
+              {/* Route Summary */}
+              {selectedRoute && (
+                <Card className="p-5 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-bold text-lg">{selectedRoute.name}</h3>
+                      <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        <span>{fromLocation} → {toLocation}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-primary">{selectedRoute.safetyScore}%</div>
+                      <div className="text-xs text-muted-foreground">Safety Score</div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4 mb-3">
+                    <div>
+                      <div className="text-xs text-muted-foreground">Distance</div>
+                      <div className="text-sm font-semibold">{selectedRoute.distance}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Duration</div>
+                      <div className="text-sm font-semibold">{selectedRoute.duration}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Lighting</div>
+                      <div className="text-sm font-semibold">{selectedRoute.lightingScore}%</div>
+                    </div>
+                  </div>
+
+                  <div className="h-2 bg-secondary/30 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all duration-500"
+                      style={{ width: `${selectedRoute.safetyScore}%` }}
+                    />
+                  </div>
+                </Card>
+              )}
+
+              {/* Map View */}
+              <div className="sticky top-24 h-[calc(100vh-350px)] min-h-[400px]">
                 <MapView
                   routes={routes}
                   hazards={mockHazards}
@@ -243,6 +358,8 @@ const Home = () => {
                   center={CENTER_COORDS}
                   lightingZones={mockLightingZones}
                   crowdZones={mockCrowdZones}
+                  emergencyServices={mockEmergencyServices}
+                  showEmergencyServices={showEmergencyServices}
                 />
               </div>
             </div>
