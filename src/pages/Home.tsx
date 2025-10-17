@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Layers, User, Phone, MapPin } from "lucide-react";
+import { ArrowLeft, Layers, User, Phone, MapPin, Moon } from "lucide-react";
 import { authHelpers, routeHelpers } from "@/lib/supabase";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -23,6 +23,7 @@ const Home = () => {
   const [filters, setFilters] = useState<SafetyFilter[]>(safetyFilters);
   const [showFilters, setShowFilters] = useState(false);
   const [showEmergencyServices, setShowEmergencyServices] = useState(false);
+  const [nightMode, setNightMode] = useState(false);
   const [fromLocation, setFromLocation] = useState('');
   const [toLocation, setToLocation] = useState('');
   const navigate = useNavigate();
@@ -286,27 +287,50 @@ const Home = () => {
             </div>
 
             <div className="lg:col-span-2 order-1 lg:order-2 space-y-4">
-              {/* Emergency Services Toggle */}
-              <Card className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Phone className="h-5 w-5 text-destructive" />
-                    <div>
-                      <Label htmlFor="emergency-toggle" className="text-sm font-semibold cursor-pointer">
-                        Show Emergency Services
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        Hospitals, Police, Fire Stations, Pharmacies
-                      </p>
+              {/* Emergency Services & Night Mode Toggles */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Phone className="h-5 w-5 text-destructive" />
+                      <div>
+                        <Label htmlFor="emergency-toggle" className="text-sm font-semibold cursor-pointer">
+                          Emergency Services
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Hospitals, Police, Fire
+                        </p>
+                      </div>
                     </div>
+                    <Switch
+                      id="emergency-toggle"
+                      checked={showEmergencyServices}
+                      onCheckedChange={setShowEmergencyServices}
+                    />
                   </div>
-                  <Switch
-                    id="emergency-toggle"
-                    checked={showEmergencyServices}
-                    onCheckedChange={setShowEmergencyServices}
-                  />
-                </div>
-              </Card>
+                </Card>
+
+                <Card className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Moon className="h-5 w-5 text-primary" />
+                      <div>
+                        <Label htmlFor="night-mode-toggle" className="text-sm font-semibold cursor-pointer">
+                          Night Mode
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Lighting & Crowd Zones
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="night-mode-toggle"
+                      checked={nightMode}
+                      onCheckedChange={setNightMode}
+                    />
+                  </div>
+                </Card>
+              </div>
 
               {/* Route Summary */}
               {selectedRoute && (
@@ -356,8 +380,8 @@ const Home = () => {
                   hazards={mockHazards}
                   selectedRoute={selectedRoute}
                   center={CENTER_COORDS}
-                  lightingZones={mockLightingZones}
-                  crowdZones={mockCrowdZones}
+                  lightingZones={nightMode ? mockLightingZones : []}
+                  crowdZones={nightMode ? mockCrowdZones : []}
                   emergencyServices={mockEmergencyServices}
                   showEmergencyServices={showEmergencyServices}
                 />
