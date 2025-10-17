@@ -9,6 +9,22 @@ import { useToast } from "@/hooks/use-toast";
 import { authHelpers } from "@/lib/supabase";
 import { supabase } from "@/integrations/supabase/client";
 import { Shield, MapPin } from "lucide-react";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address").max(255, "Email too long"),
+  password: z.string().min(1, "Password is required"),
+});
+
+const signupSchema = z.object({
+  email: z.string().email("Invalid email address").max(255, "Email too long"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100, "Password too long")
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain uppercase, lowercase, and number"),
+  fullName: z.string().trim().min(1, "Name is required").max(100, "Name too long"),
+  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number format (e.g., +11234567890)"),
+});
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -43,20 +59,41 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await authHelpers.signIn(loginEmail, loginPassword);
+    try {
+      const validation = loginSchema.safeParse({ email: loginEmail, password: loginPassword });
+      
+      if (!validation.success) {
+        const errors = validation.error.errors.map(e => e.message).join(", ");
+        toast({
+          title: "Validation Error",
+          description: errors,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
 
-    if (error) {
+      const { error } = await authHelpers.signIn(loginEmail, loginPassword);
+
+      if (error) {
+        toast({
+          title: "Login Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Welcome Back!",
+          description: "You have successfully logged in.",
+        });
+        navigate("/home");
+      }
+    } catch (err) {
       toast({
-        title: "Login Failed",
-        description: error.message,
+        title: "Error",
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Welcome Back!",
-        description: "You have successfully logged in.",
-      });
-      navigate("/home");
     }
 
     setIsLoading(false);
@@ -66,21 +103,47 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await authHelpers.signUp(signupEmail, signupPassword, fullName, phone);
+    try {
+      const validation = signupSchema.safeParse({ 
+        email: signupEmail, 
+        password: signupPassword,
+        fullName,
+        phone 
+      });
+      
+      if (!validation.success) {
+        const errors = validation.error.errors.map(e => e.message).join(", ");
+        toast({
+          title: "Validation Error",
+          description: errors,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
 
-    if (error) {
+      const { error } = await authHelpers.signUp(signupEmail, signupPassword, fullName, phone);
+
+      if (error) {
+        toast({
+          title: "Signup Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Account Created!",
+          description: "Welcome to Smart Route. You can now log in.",
+        });
+        setLoginEmail(signupEmail);
+        setLoginPassword(signupPassword);
+      }
+    } catch (err) {
       toast({
-        title: "Signup Failed",
-        description: error.message,
+        title: "Error",
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Account Created!",
-        description: "Welcome to Smart Route. You can now log in.",
-      });
-      setLoginEmail(signupEmail);
-      setLoginPassword(signupPassword);
     }
 
     setIsLoading(false);
