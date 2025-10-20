@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,11 @@ import { authHelpers, profileHelpers, routeHelpers, Profile, SavedRoute, TripHis
 import { supabase } from "@/integrations/supabase/client";
 import { User, ArrowLeft, MapPin, Clock, Shield, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const profileUpdateSchema = z.object({
+  full_name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
+  phone: z.string().trim().regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number format").optional().or(z.literal(''))
+});
 
 const ProfilePage = () => {
   const [user, setUser] = useState<any>(null);
@@ -59,9 +65,24 @@ const ProfilePage = () => {
   const handleUpdateProfile = async () => {
     if (!user) return;
 
-    const { error } = await profileHelpers.updateProfile(user.id, {
+    // Validate inputs
+    const validation = profileUpdateSchema.safeParse({
       full_name: fullName,
-      phone: phone,
+      phone: phone
+    });
+
+    if (!validation.success) {
+      toast({
+        title: "Validation Error",
+        description: validation.error.errors.map(e => e.message).join(", "),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await profileHelpers.updateProfile(user.id, {
+      full_name: validation.data.full_name,
+      phone: validation.data.phone,
     } as Partial<Profile>);
 
     if (error) {
