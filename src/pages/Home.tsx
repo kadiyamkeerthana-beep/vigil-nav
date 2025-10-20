@@ -15,6 +15,12 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Layers, User, Phone, MapPin, Moon } from "lucide-react";
 import { authHelpers, routeHelpers } from "@/lib/supabase";
 import { supabase } from "@/integrations/supabase/client";
+import { z } from "zod";
+
+const routeLocationSchema = z.object({
+  fromLocation: z.string().trim().min(1, "Start location required").max(200, "Location name too long"),
+  toLocation: z.string().trim().min(1, "End location required").max(200, "Location name too long")
+});
 
 const Home = () => {
   const [user, setUser] = useState<any>(null);
@@ -105,11 +111,26 @@ const Home = () => {
   const handleSaveRoute = async () => {
     if (!selectedRoute || !user) return;
 
+    // Validate route locations
+    const validationResult = routeLocationSchema.safeParse({
+      fromLocation: fromLocation || "Start Location",
+      toLocation: toLocation || "End Location"
+    });
+
+    if (!validationResult.success) {
+      toast({
+        title: "Validation Error",
+        description: validationResult.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await routeHelpers.saveRoute({
       user_id: user.id,
       route_name: selectedRoute.name,
-      from_location: fromLocation || "Start Location",
-      to_location: toLocation || "End Location",
+      from_location: validationResult.data.fromLocation,
+      to_location: validationResult.data.toLocation,
       route_type: selectedRoute.type,
       safety_score: selectedRoute.safetyScore,
       duration: selectedRoute.duration,
@@ -133,10 +154,25 @@ const Home = () => {
   const handleCompleteTrip = async () => {
     if (!selectedRoute || !user) return;
 
+    // Validate route locations
+    const validationResult = routeLocationSchema.safeParse({
+      fromLocation: fromLocation || "Start Location",
+      toLocation: toLocation || "End Location"
+    });
+
+    if (!validationResult.success) {
+      toast({
+        title: "Validation Error",
+        description: validationResult.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await routeHelpers.addTripHistory({
       user_id: user.id,
-      from_location: fromLocation || "Start Location",
-      to_location: toLocation || "End Location",
+      from_location: validationResult.data.fromLocation,
+      to_location: validationResult.data.toLocation,
       route_type: selectedRoute.type,
       safety_score: selectedRoute.safetyScore,
       duration: selectedRoute.duration,
