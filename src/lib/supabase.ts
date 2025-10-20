@@ -45,6 +45,17 @@ export interface HazardReport {
   created_at: string;
 }
 
+// Public view of hazards without user_id for privacy
+export interface PublicHazard {
+  id: string;
+  hazard_type: string;
+  location_lat: number;
+  location_lng: number;
+  description: string;
+  severity: string;
+  created_at: string;
+}
+
 export interface EmergencyContact {
   id: string;
   user_id: string;
@@ -179,10 +190,22 @@ export const hazardHelpers = {
     return { data: data as HazardReport | null, error };
   },
 
-  async getHazardReports() {
+  // Get public hazards (without user_id) for map display
+  async getPublicHazards() {
+    const { data, error } = await supabase
+      .from('public_hazards')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    return { data: data as PublicHazard[] | null, error };
+  },
+
+  // Get user's own hazard reports
+  async getMyHazardReports(userId: string) {
     const { data, error } = await supabase
       .from('hazard_reports')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
     
     return { data: data as HazardReport[] | null, error };
