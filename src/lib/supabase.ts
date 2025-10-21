@@ -190,11 +190,10 @@ export const hazardHelpers = {
     return { data: data as HazardReport | null, error };
   },
 
-  // Get public hazards (without user_id) for map display
+  // Get public hazards (without user_id) for map display using secure function
   async getPublicHazards() {
     const { data, error } = await supabase
-      .from('public_hazards')
-      .select('*')
+      .rpc('get_public_hazards')
       .order('created_at', { ascending: false });
     
     return { data: data as PublicHazard[] | null, error };

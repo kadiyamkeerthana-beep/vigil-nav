@@ -178,10 +178,50 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_hazards: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          hazard_type: string | null
+          id: string | null
+          location_lat: number | null
+          location_lng: number | null
+          severity: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          hazard_type?: string | null
+          id?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
+          severity?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          hazard_type?: string | null
+          id?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
+          severity?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      get_public_hazards: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          description: string
+          hazard_type: string
+          id: string
+          location_lat: number
+          location_lng: number
+          severity: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
