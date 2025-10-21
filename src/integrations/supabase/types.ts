@@ -178,36 +178,7 @@ export type Database = {
       }
     }
     Views: {
-      public_hazards: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          hazard_type: string | null
-          id: string | null
-          location_lat: number | null
-          location_lng: number | null
-          severity: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          hazard_type?: string | null
-          id?: string | null
-          location_lat?: number | null
-          location_lng?: number | null
-          severity?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          hazard_type?: string | null
-          id?: string | null
-          location_lat?: number | null
-          location_lng?: number | null
-          severity?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       [_ in never]: never
