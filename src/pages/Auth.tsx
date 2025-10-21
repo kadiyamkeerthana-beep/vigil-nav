@@ -11,6 +11,39 @@ import { supabase } from "@/integrations/supabase/client";
 import { Shield, MapPin } from "lucide-react";
 import { z } from "zod";
 
+// Check if a password appears in known breaches using k-anonymity API (HIBP)
+async function isPasswordPwned(password: string): Promise<boolean> {
+  try {
+    // Hash the password with SHA-1 and split into prefix/suffix
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest("SHA-1", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+    const prefix = hashHex.slice(0, 5);
+    const suffix = hashHex.slice(5);
+
+    const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+      headers: { "Add-Padding": "true" },
+    });
+    if (!res.ok) return false; // Fail-closed to not block signups on network errors
+
+    const text = await res.text();
+    // Each line is "SUFFIX:COUNT"
+    const lines = text.split("\n");
+    for (const line of lines) {
+      const [suf, count] = line.trim().split(":");
+      if (suf === suffix && Number(count) > 0) {
+        return true;
+      }
+    }
+    return false;
+  } catch {
+    // Do not expose errors or log sensitive data
+    return false;
+  }
+}
+
 const loginSchema = z.object({
   email: z.string().email("Invalid email address").max(255, "Email too long"),
   password: z.string().min(1, "Password is required"),
@@ -116,6 +149,18 @@ const Auth = () => {
         toast({
           title: "Validation Error",
           description: errors,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Leaked password check using k-anonymity (HIBP)
+      const pwned = await isPasswordPwned(signupPassword);
+      if (pwned) {
+        toast({
+          title: "Weak or leaked password",
+          description: "This password has appeared in known data breaches. Please choose a different, stronger password.",
           variant: "destructive",
         });
         setIsLoading(false);
