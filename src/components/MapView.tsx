@@ -12,6 +12,9 @@ interface MapViewProps {
   crowdZones?: CrowdZone[];
   emergencyServices?: EmergencyService[];
   showEmergencyServices?: boolean;
+  isNavigating?: boolean;
+  currentPosition?: [number, number];
+  traveledPath?: [number, number][];
 }
 
 // Fix Leaflet default marker icon issue
@@ -22,7 +25,19 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-const MapView = ({ routes, hazards, selectedRoute, center, lightingZones = [], crowdZones = [], emergencyServices = [], showEmergencyServices = false }: MapViewProps) => {
+const MapView = ({ 
+  routes, 
+  hazards, 
+  selectedRoute, 
+  center, 
+  lightingZones = [], 
+  crowdZones = [], 
+  emergencyServices = [], 
+  showEmergencyServices = false,
+  isNavigating = false,
+  currentPosition,
+  traveledPath = [],
+}: MapViewProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const routeLayers = useRef<L.Polyline[]>([]);
@@ -30,6 +45,8 @@ const MapView = ({ routes, hazards, selectedRoute, center, lightingZones = [], c
   const lightingLayers = useRef<L.Polygon[]>([]);
   const crowdLayers = useRef<L.Circle[]>([]);
   const emergencyLayers = useRef<L.Marker[]>([]);
+  const navigationMarkerRef = useRef<L.Marker | null>(null);
+  const traveledPathRef = useRef<L.Polyline | null>(null);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -323,6 +340,79 @@ const MapView = ({ routes, hazards, selectedRoute, center, lightingZones = [], c
       emergencyLayers.current.push(marker);
     });
   }, [emergencyServices, showEmergencyServices]);
+
+  // Update navigation marker and traveled path
+  useEffect(() => {
+    if (!mapRef.current || !isNavigating) {
+      // Remove navigation marker when not navigating
+      if (navigationMarkerRef.current) {
+        navigationMarkerRef.current.remove();
+        navigationMarkerRef.current = null;
+      }
+      if (traveledPathRef.current) {
+        traveledPathRef.current.remove();
+        traveledPathRef.current = null;
+      }
+      return;
+    }
+
+    if (currentPosition) {
+      // Remove old navigation marker
+      if (navigationMarkerRef.current) {
+        navigationMarkerRef.current.remove();
+      }
+
+      // Create animated car/navigation marker
+      const carIcon = L.divIcon({
+        html: `
+          <div style="
+            width: 40px; 
+            height: 40px; 
+            border-radius: 50%; 
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            border: 4px solid white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
+            animation: pulse 2s infinite;
+          ">
+            <div style="font-size: 20px; transform: rotate(0deg);">🚗</div>
+          </div>
+          <style>
+            @keyframes pulse {
+              0%, 100% { transform: scale(1); }
+              50% { transform: scale(1.1); }
+            }
+          </style>
+        `,
+        className: '',
+        iconSize: [40, 40],
+      });
+
+      navigationMarkerRef.current = L.marker(currentPosition, { 
+        icon: carIcon,
+        zIndexOffset: 1000 
+      }).addTo(mapRef.current);
+
+      // Center map on current position
+      mapRef.current.setView(currentPosition, mapRef.current.getZoom());
+    }
+
+    // Update traveled path
+    if (traveledPath.length > 1) {
+      if (traveledPathRef.current) {
+        traveledPathRef.current.remove();
+      }
+
+      traveledPathRef.current = L.polyline(traveledPath, {
+        color: '#10b981',
+        weight: 6,
+        opacity: 1,
+        smoothFactor: 1,
+      }).addTo(mapRef.current);
+    }
+  }, [isNavigating, currentPosition, traveledPath]);
 
   return (
     <div 

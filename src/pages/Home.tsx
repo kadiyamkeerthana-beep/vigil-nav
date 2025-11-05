@@ -1,10 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import SearchBar from "@/components/SearchBar";
 import MapView from "@/components/MapView";
 import RouteCard from "@/components/RouteCard";
 import SafetyFilters from "@/components/SafetyFilters";
 import EmergencyButton from "@/components/EmergencyButton";
+import NavigationControls from "@/components/NavigationControls";
+import NavigationDashboard from "@/components/NavigationDashboard";
+import TurnByTurnDirections, { Direction } from "@/components/TurnByTurnDirections";
 import { mockRoutes, mockHazards, safetyFilters, CENTER_COORDS, mockLightingZones, mockCrowdZones, mockEmergencyServices } from "@/data/mockData";
 import { RouteOption, SafetyFilter } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +19,7 @@ import { ArrowLeft, Layers, User, Phone, MapPin, Moon } from "lucide-react";
 import { authHelpers, routeHelpers } from "@/lib/supabase";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
+import { generateDirections, calculateDistance, calculateETA, interpolateCoordinates } from "@/utils/navigationUtils";
 
 const routeLocationSchema = z.object({
   fromLocation: z.string().trim().min(1, "Start location required").max(200, "Location name too long"),
@@ -34,6 +38,18 @@ const Home = () => {
   const [toLocation, setToLocation] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Navigation state
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [currentPosition, setCurrentPosition] = useState<[number, number] | null>(null);
+  const [traveledPath, setTraveledPath] = useState<[number, number][]>([]);
+  const [directions, setDirections] = useState<Direction[]>([]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const animationRef = useRef<number | null>(null);
+  const coordinateIndexRef = useRef(0);
+  const segmentProgressRef = useRef(0);
 
   useEffect(() => {
     const initUser = async () => {
@@ -193,6 +209,143 @@ const Home = () => {
     }
   };
 
+  // Navigation functions
+  const handleStartNavigation = () => {
+    if (!selectedRoute) return;
+
+    setIsNavigating(true);
+    setIsPaused(false);
+    setCurrentPosition(selectedRoute.coordinates[0]);
+    setTraveledPath([selectedRoute.coordinates[0]]);
+    setDirections(generateDirections(selectedRoute.coordinates, selectedRoute.name));
+    setCurrentStepIndex(0);
+    setProgress(0);
+    coordinateIndexRef.current = 0;
+    segmentProgressRef.current = 0;
+
+    toast({
+      title: "Navigation Started",
+      description: "Follow the turn-by-turn directions",
+    });
+
+    animateRoute();
+  };
+
+  const handlePauseNavigation = () => {
+    setIsPaused(!isPaused);
+    if (!isPaused) {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      toast({
+        title: "Navigation Paused",
+        description: "Resume when ready",
+      });
+    } else {
+      toast({
+        title: "Navigation Resumed",
+        description: "Continuing route",
+      });
+      animateRoute();
+    }
+  };
+
+  const handleStopNavigation = () => {
+    setIsNavigating(false);
+    setIsPaused(false);
+    setCurrentPosition(null);
+    setTraveledPath([]);
+    setProgress(0);
+    coordinateIndexRef.current = 0;
+    segmentProgressRef.current = 0;
+    
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+
+    toast({
+      title: "Navigation Stopped",
+      description: "Route navigation ended",
+    });
+  };
+
+  const animateRoute = () => {
+    if (!selectedRoute || !isNavigating || isPaused) return;
+
+    const coordinates = selectedRoute.coordinates;
+    const speed = 0.01; // Animation speed (lower = slower, more realistic)
+
+    const animate = () => {
+      if (coordinateIndexRef.current >= coordinates.length - 1) {
+        // Navigation completed
+        setProgress(100);
+        toast({
+          title: "Destination Reached!",
+          description: "You have arrived at your destination",
+        });
+        setIsNavigating(false);
+        return;
+      }
+
+      segmentProgressRef.current += speed;
+
+      if (segmentProgressRef.current >= 1) {
+        coordinateIndexRef.current += 1;
+        segmentProgressRef.current = 0;
+
+        // Update current step for directions
+        if (coordinateIndexRef.current < directions.length) {
+          setCurrentStepIndex(coordinateIndexRef.current);
+        }
+      }
+
+      if (coordinateIndexRef.current < coordinates.length - 1) {
+        const currentCoord = coordinates[coordinateIndexRef.current];
+        const nextCoord = coordinates[coordinateIndexRef.current + 1];
+        const interpolated = interpolateCoordinates(
+          currentCoord,
+          nextCoord,
+          segmentProgressRef.current
+        );
+
+        setCurrentPosition(interpolated);
+        setTraveledPath(prev => [...prev.slice(-50), interpolated]); // Keep last 50 points
+
+        // Calculate progress
+        const totalProgress = (coordinateIndexRef.current + segmentProgressRef.current) / (coordinates.length - 1);
+        setProgress(Math.round(totalProgress * 100));
+      }
+
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+  };
+
+  // Calculate navigation stats
+  const getNavigationStats = () => {
+    if (!selectedRoute) return { distanceTraveled: '0 km', distanceRemaining: '0 km', eta: '0 min' };
+
+    const totalDistance = parseFloat(selectedRoute.distance);
+    const traveled = (progress / 100) * totalDistance;
+    const remaining = totalDistance - traveled;
+
+    return {
+      distanceTraveled: `${traveled.toFixed(1)} km`,
+      distanceRemaining: `${remaining.toFixed(1)} km`,
+      eta: calculateETA(remaining),
+    };
+  };
+
+  // Cleanup animation on unmount
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
+
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -323,6 +476,27 @@ const Home = () => {
             </div>
 
             <div className="lg:col-span-2 order-1 lg:order-2 space-y-4">
+              {/* Navigation Controls */}
+              {selectedRoute && (
+                <NavigationControls
+                  isNavigating={isNavigating}
+                  isPaused={isPaused}
+                  onStart={handleStartNavigation}
+                  onPause={handlePauseNavigation}
+                  onStop={handleStopNavigation}
+                />
+              )}
+
+              {/* Navigation Dashboard */}
+              {isNavigating && (
+                <NavigationDashboard
+                  distanceTraveled={getNavigationStats().distanceTraveled}
+                  distanceRemaining={getNavigationStats().distanceRemaining}
+                  eta={getNavigationStats().eta}
+                  progress={progress}
+                />
+              )}
+
               {/* Emergency Services & Night Mode Toggles */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card className="p-4">
@@ -409,6 +583,14 @@ const Home = () => {
                 </Card>
               )}
 
+              {/* Turn-by-Turn Directions */}
+              {isNavigating && directions.length > 0 && (
+                <TurnByTurnDirections
+                  directions={directions}
+                  currentStep={currentStepIndex}
+                />
+              )}
+
               {/* Map View */}
               <div className="sticky top-24 h-[calc(100vh-350px)] min-h-[400px]">
                 <MapView
@@ -420,6 +602,9 @@ const Home = () => {
                   crowdZones={nightMode ? mockCrowdZones : []}
                   emergencyServices={mockEmergencyServices}
                   showEmergencyServices={showEmergencyServices}
+                  isNavigating={isNavigating}
+                  currentPosition={currentPosition || undefined}
+                  traveledPath={traveledPath}
                 />
               </div>
             </div>
