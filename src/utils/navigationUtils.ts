@@ -1,5 +1,21 @@
 import { Direction } from "@/components/TurnByTurnDirections";
 
+export type SpeedMode = 'slow' | 'normal' | 'fast';
+
+// Get animation speed based on mode
+export const getAnimationSpeed = (mode: SpeedMode): number => {
+  switch (mode) {
+    case 'slow':
+      return 0.005; // Very slow, realistic driving
+    case 'normal':
+      return 0.015; // Normal speed
+    case 'fast':
+      return 0.04; // Fast demonstration
+    default:
+      return 0.015;
+  }
+};
+
 // Calculate distance between two coordinates (Haversine formula)
 export const calculateDistance = (
   coord1: [number, number],

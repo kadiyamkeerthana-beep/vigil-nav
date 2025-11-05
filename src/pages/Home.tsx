@@ -6,6 +6,7 @@ import RouteCard from "@/components/RouteCard";
 import SafetyFilters from "@/components/SafetyFilters";
 import EmergencyButton from "@/components/EmergencyButton";
 import NavigationControls from "@/components/NavigationControls";
+import SpeedControl, { SpeedMode } from "@/components/SpeedControl";
 import NavigationDashboard from "@/components/NavigationDashboard";
 import TurnByTurnDirections, { Direction } from "@/components/TurnByTurnDirections";
 import { mockRoutes, mockHazards, safetyFilters, CENTER_COORDS, mockLightingZones, mockCrowdZones, mockEmergencyServices } from "@/data/mockData";
@@ -19,7 +20,7 @@ import { ArrowLeft, Layers, User, Phone, MapPin, Moon } from "lucide-react";
 import { authHelpers, routeHelpers } from "@/lib/supabase";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
-import { generateDirections, calculateDistance, calculateETA, interpolateCoordinates } from "@/utils/navigationUtils";
+import { generateDirections, calculateDistance, calculateETA, interpolateCoordinates, getAnimationSpeed } from "@/utils/navigationUtils";
 
 const routeLocationSchema = z.object({
   fromLocation: z.string().trim().min(1, "Start location required").max(200, "Location name too long"),
@@ -47,6 +48,7 @@ const Home = () => {
   const [directions, setDirections] = useState<Direction[]>([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [speedMode, setSpeedMode] = useState<SpeedMode>('normal');
   const animationRef = useRef<number | null>(null);
   const coordinateIndexRef = useRef(0);
   const segmentProgressRef = useRef(0);
@@ -273,7 +275,7 @@ const Home = () => {
     if (!selectedRoute || !isNavigating || isPaused) return;
 
     const coordinates = selectedRoute.coordinates;
-    const speed = 0.01; // Animation speed (lower = slower, more realistic)
+    const speed = getAnimationSpeed(speedMode); // Get speed based on selected mode
 
     const animate = () => {
       if (coordinateIndexRef.current >= coordinates.length - 1) {
@@ -320,6 +322,22 @@ const Home = () => {
     };
 
     animationRef.current = requestAnimationFrame(animate);
+  };
+
+  // Handle speed change
+  const handleSpeedChange = (newSpeed: SpeedMode) => {
+    setSpeedMode(newSpeed);
+    
+    // Restart animation with new speed if currently navigating
+    if (isNavigating && !isPaused && animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animateRoute();
+    }
+
+    toast({
+      title: "Speed Changed",
+      description: `Navigation speed set to ${newSpeed}`,
+    });
   };
 
   // Calculate navigation stats
@@ -478,13 +496,20 @@ const Home = () => {
             <div className="lg:col-span-2 order-1 lg:order-2 space-y-4">
               {/* Navigation Controls */}
               {selectedRoute && (
-                <NavigationControls
-                  isNavigating={isNavigating}
-                  isPaused={isPaused}
-                  onStart={handleStartNavigation}
-                  onPause={handlePauseNavigation}
-                  onStop={handleStopNavigation}
-                />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <NavigationControls
+                    isNavigating={isNavigating}
+                    isPaused={isPaused}
+                    onStart={handleStartNavigation}
+                    onPause={handlePauseNavigation}
+                    onStop={handleStopNavigation}
+                  />
+                  <SpeedControl
+                    currentSpeed={speedMode}
+                    onSpeedChange={handleSpeedChange}
+                    disabled={!isNavigating}
+                  />
+                </div>
               )}
 
               {/* Navigation Dashboard */}
