@@ -215,44 +215,38 @@ const Home = () => {
   const handleStartNavigation = () => {
     if (!selectedRoute) return;
 
-    setIsNavigating(true);
-    setIsPaused(false);
+    coordinateIndexRef.current = 0;
+    segmentProgressRef.current = 0;
     setCurrentPosition(selectedRoute.coordinates[0]);
     setTraveledPath([selectedRoute.coordinates[0]]);
     setDirections(generateDirections(selectedRoute.coordinates, selectedRoute.name));
     setCurrentStepIndex(0);
     setProgress(0);
-    coordinateIndexRef.current = 0;
-    segmentProgressRef.current = 0;
+    setIsPaused(false);
+    setIsNavigating(true);
 
     toast({
       title: "Navigation Started",
       description: "Follow the turn-by-turn directions",
     });
-
-    animateRoute();
   };
 
   const handlePauseNavigation = () => {
-    setIsPaused(!isPaused);
-    if (!isPaused) {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      toast({
-        title: "Navigation Paused",
-        description: "Resume when ready",
-      });
-    } else {
-      toast({
-        title: "Navigation Resumed",
-        description: "Continuing route",
-      });
-      animateRoute();
-    }
+    const newPausedState = !isPaused;
+    setIsPaused(newPausedState);
+    
+    toast({
+      title: newPausedState ? "Navigation Paused" : "Navigation Resumed",
+      description: newPausedState ? "Resume when ready" : "Continuing route",
+    });
   };
 
   const handleStopNavigation = () => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+    
     setIsNavigating(false);
     setIsPaused(false);
     setCurrentPosition(null);
@@ -260,10 +254,6 @@ const Home = () => {
     setProgress(0);
     coordinateIndexRef.current = 0;
     segmentProgressRef.current = 0;
-    
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-    }
 
     toast({
       title: "Navigation Stopped",
@@ -271,21 +261,42 @@ const Home = () => {
     });
   };
 
-  const animateRoute = () => {
-    if (!selectedRoute || !isNavigating || isPaused) return;
+  // Cleanup animation on unmount and when navigation stops
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
+
+  // Animation loop effect - restarts when speed changes or navigation resumes
+  useEffect(() => {
+    if (!isNavigating || isPaused || !selectedRoute) {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+      return;
+    }
 
     const coordinates = selectedRoute.coordinates;
-    const speed = getAnimationSpeed(speedMode); // Get speed based on selected mode
+    const speed = getAnimationSpeed(speedMode);
 
     const animate = () => {
       if (coordinateIndexRef.current >= coordinates.length - 1) {
         // Navigation completed
         setProgress(100);
+        setCurrentPosition(coordinates[coordinates.length - 1]);
         toast({
           title: "Destination Reached!",
           description: "You have arrived at your destination",
         });
         setIsNavigating(false);
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+          animationRef.current = null;
+        }
         return;
       }
 
@@ -311,7 +322,7 @@ const Home = () => {
         );
 
         setCurrentPosition(interpolated);
-        setTraveledPath(prev => [...prev.slice(-50), interpolated]); // Keep last 50 points
+        setTraveledPath(prev => [...prev.slice(-50), interpolated]);
 
         // Calculate progress
         const totalProgress = (coordinateIndexRef.current + segmentProgressRef.current) / (coordinates.length - 1);
@@ -322,17 +333,18 @@ const Home = () => {
     };
 
     animationRef.current = requestAnimationFrame(animate);
-  };
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+    };
+  }, [isNavigating, isPaused, selectedRoute, speedMode, directions, toast]);
 
   // Handle speed change
   const handleSpeedChange = (newSpeed: SpeedMode) => {
     setSpeedMode(newSpeed);
-    
-    // Restart animation with new speed if currently navigating
-    if (isNavigating && !isPaused && animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-      animateRoute();
-    }
 
     toast({
       title: "Speed Changed",
@@ -355,14 +367,6 @@ const Home = () => {
     };
   };
 
-  // Cleanup animation on unmount
-  useEffect(() => {
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, []);
 
   if (!user) {
     return (
