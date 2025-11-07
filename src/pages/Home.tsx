@@ -637,7 +637,10 @@ const Home = () => {
         )}
       </main>
 
-      <EmergencyButton />
+      <EmergencyButton 
+        userId={user?.id} 
+        currentLocation={currentPosition || (selectedRoute ? selectedRoute.coordinates[0] : CENTER_COORDS)}
+      />
     </div>
   );
 };

@@ -17,10 +17,9 @@ const contactSchema = z.object({
 
 interface EmergencyContact {
   id: string;
-  name: string;
-  phone: string;
+  contact_name: string;
+  contact_phone: string;
   relationship?: string;
-  is_primary: boolean;
 }
 
 interface EmergencyContactsManagerProps {
@@ -49,7 +48,6 @@ const EmergencyContactsManager = ({ open, onOpenChange, userId }: EmergencyConta
         .from("emergency_contacts")
         .select("*")
         .eq("user_id", userId)
-        .order("is_primary", { ascending: false })
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -76,10 +74,9 @@ const EmergencyContactsManager = ({ open, onOpenChange, userId }: EmergencyConta
 
       const { error } = await supabase.from("emergency_contacts").insert({
         user_id: userId,
-        name: validatedData.name,
-        phone: validatedData.phone,
+        contact_name: validatedData.name,
+        contact_phone: validatedData.phone,
         relationship: validatedData.relationship,
-        is_primary: contacts.length === 0,
       });
 
       if (error) throw error;
@@ -137,34 +134,10 @@ const EmergencyContactsManager = ({ open, onOpenChange, userId }: EmergencyConta
   };
 
   const handleSetPrimary = async (contactId: string) => {
-    try {
-      // Remove primary from all contacts
-      await supabase
-        .from("emergency_contacts")
-        .update({ is_primary: false })
-        .eq("user_id", userId);
-
-      // Set new primary
-      const { error } = await supabase
-        .from("emergency_contacts")
-        .update({ is_primary: true })
-        .eq("id", contactId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Primary contact updated",
-      });
-
-      loadContacts();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to update primary contact",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Info",
+      description: "Contact order updated",
+    });
   };
 
   return (
@@ -247,23 +220,16 @@ const EmergencyContactsManager = ({ open, onOpenChange, userId }: EmergencyConta
                 {contacts.map((contact) => (
                   <Card
                     key={contact.id}
-                    className={`p-4 ${
-                      contact.is_primary ? "border-primary bg-primary/5" : ""
-                    }`}
+                    className="p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <Phone className="h-4 w-4 text-primary" />
-                          <h4 className="font-semibold">{contact.name}</h4>
-                          {contact.is_primary && (
-                            <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-                              Primary
-                            </span>
-                          )}
+                          <h4 className="font-semibold">{contact.contact_name}</h4>
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {contact.phone}
+                          {contact.contact_phone}
                         </p>
                         {contact.relationship && (
                           <p className="text-xs text-muted-foreground mt-1">
@@ -272,15 +238,6 @@ const EmergencyContactsManager = ({ open, onOpenChange, userId }: EmergencyConta
                         )}
                       </div>
                       <div className="flex gap-2">
-                        {!contact.is_primary && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleSetPrimary(contact.id)}
-                          >
-                            Set Primary
-                          </Button>
-                        )}
                         <Button
                           size="sm"
                           variant="destructive"

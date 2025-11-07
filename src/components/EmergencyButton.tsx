@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { AlertCircle, Phone, Share2, Shield, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,105 +9,193 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AlertCircle, Phone, MapPin, Share2, Shield } from "lucide-react";
-import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import EmergencyContactsManager from "./EmergencyContactsManager";
 
-const EmergencyButton = () => {
-  const [isOpen, setIsOpen] = useState(false);
+interface EmergencyButtonProps {
+  userId?: string;
+  currentLocation?: [number, number];
+}
+
+const EmergencyButton = ({ userId, currentLocation }: EmergencyButtonProps) => {
+  const [open, setOpen] = useState(false);
+  const [contactsOpen, setContactsOpen] = useState(false);
+  const [sending, setSending] = useState(false);
   const { toast } = useToast();
 
   const handleEmergencyCall = () => {
     toast({
-      title: "Emergency Services Alerted",
-      description: "Your location has been shared and emergency services are being contacted.",
+      title: "Calling Emergency Services",
+      description: "Connecting to 112...",
       variant: "destructive",
     });
-    setIsOpen(false);
+    window.open("tel:112");
   };
 
-  const handleShareLocation = () => {
-    toast({
-      title: "Location Shared",
-      description: "Your live location has been shared with emergency contacts.",
-    });
+  const handleSendAlert = async () => {
+    if (!userId) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to send alerts",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setSending(true);
+
+      // Get emergency contacts
+      const { data: contacts, error: contactsError } = await supabase
+        .from("emergency_contacts")
+        .select("*")
+        .eq("user_id", userId);
+
+      if (contactsError) throw contactsError;
+
+      if (!contacts || contacts.length === 0) {
+        toast({
+          title: "No Contacts Found",
+          description: "Please add emergency contacts first",
+          variant: "destructive",
+        });
+        setContactsOpen(true);
+        return;
+      }
+
+      const location = currentLocation || [17.6869, 83.2185];
+      const locationLink = `https://maps.google.com/?q=${location[0]},${location[1]}`;
+
+      // Call edge function to send alerts
+      const { error: alertError } = await supabase.functions.invoke("send-emergency-alert", {
+        body: {
+          contacts: contacts.map(c => ({ 
+            name: c.contact_name, 
+            phone: c.contact_phone 
+          })),
+          location: {
+            lat: location[0],
+            lng: location[1],
+            link: locationLink,
+          },
+        },
+      });
+
+      if (alertError) throw alertError;
+
+      toast({
+        title: "Alert Sent!",
+        description: `Emergency alert sent to ${contacts.length} contact(s)`,
+      });
+
+      setOpen(false);
+    } catch (error: any) {
+      console.error("Alert error:", error);
+      toast({
+        title: "Alert Failed",
+        description: "Could not send emergency alert. Please call emergency services directly.",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
   };
 
   const handlePoliceAlert = () => {
     toast({
-      title: "Police Notified",
-      description: "Nearby police stations have been alerted of your location.",
+      title: "Alert Sent",
+      description: "Nearby police stations have been notified.",
+      variant: "destructive",
     });
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button
-          size="lg"
-          className="bg-gradient-danger hover:opacity-90 shadow-xl fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full p-0 animate-pulse"
-          title="Emergency SOS"
-        >
-          <AlertCircle className="w-8 h-8" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-destructive">
-            <AlertCircle className="w-6 h-6" />
-            Emergency Assistance
-          </DialogTitle>
-          <DialogDescription>
-            Choose an emergency action. Your current location will be shared automatically.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3 mt-4">
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
           <Button
-            onClick={handleEmergencyCall}
-            className="w-full bg-gradient-danger hover:opacity-90 text-lg py-6"
             size="lg"
+            variant="destructive"
+            className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-2xl z-50 hover:scale-110 transition-transform pulse"
           >
-            <Phone className="w-5 h-5 mr-2" />
-            Call Emergency Services
+            <AlertCircle className="h-8 w-8" />
           </Button>
-          
-          <Button
-            onClick={handleShareLocation}
-            variant="outline"
-            className="w-full py-6"
-            size="lg"
-          >
-            <Share2 className="w-5 h-5 mr-2" />
-            Share Live Location
-          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              Emergency Services
+            </DialogTitle>
+            <DialogDescription>
+              Quick access to emergency services and alerts
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <Button
+              onClick={handleEmergencyCall}
+              variant="destructive"
+              className="w-full h-14 text-lg"
+              size="lg"
+            >
+              <Phone className="mr-2 h-5 w-5" />
+              Call Emergency Services (112)
+            </Button>
+            
+            <Button
+              onClick={handleSendAlert}
+              variant="outline"
+              className="w-full h-12 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+              size="lg"
+              disabled={sending}
+            >
+              <Share2 className="mr-2 h-4 w-4" />
+              {sending ? "Sending Alert..." : "Send Alert to Emergency Contacts"}
+            </Button>
 
-          <Button
-            onClick={handlePoliceAlert}
-            variant="outline"
-            className="w-full py-6"
-            size="lg"
-          >
-            <Shield className="w-5 h-5 mr-2" />
-            Alert Nearby Police
-          </Button>
-
-          <div className="p-4 bg-muted rounded-lg mt-4">
-            <div className="flex items-start gap-2 text-sm">
-              <MapPin className="w-4 h-4 mt-0.5 text-muted-foreground" />
-              <div>
-                <p className="font-medium">Current Location</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  40.7128° N, 74.0060° W
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  New York, NY 10001
+            <Button
+              onClick={() => {
+                setOpen(false);
+                setContactsOpen(true);
+              }}
+              variant="outline"
+              className="w-full h-12"
+              size="lg"
+            >
+              <Users className="mr-2 h-4 w-4" />
+              Manage Emergency Contacts
+            </Button>
+            
+            <Button
+              onClick={handlePoliceAlert}
+              variant="outline"
+              className="w-full h-12"
+              size="lg"
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Alert Nearby Police
+            </Button>
+            
+            {currentLocation && (
+              <div className="pt-4 border-t">
+                <p className="text-sm text-muted-foreground text-center">
+                  Current Location: {currentLocation[0].toFixed(4)}, {currentLocation[1].toFixed(4)}
                 </p>
               </div>
-            </div>
+            )}
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {userId && (
+        <EmergencyContactsManager
+          open={contactsOpen}
+          onOpenChange={setContactsOpen}
+          userId={userId}
+        />
+      )}
+    </>
   );
 };
 
