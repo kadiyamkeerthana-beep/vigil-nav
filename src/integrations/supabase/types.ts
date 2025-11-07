@@ -182,7 +182,7 @@ export type Database = {
     }
     Functions: {
       get_public_hazards: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string
           description: string
