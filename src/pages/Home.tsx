@@ -9,15 +9,16 @@ import NavigationControls from "@/components/NavigationControls";
 import SpeedControl, { SpeedMode } from "@/components/SpeedControl";
 import NavigationDashboard from "@/components/NavigationDashboard";
 import TurnByTurnDirections, { Direction } from "@/components/TurnByTurnDirections";
-import { mockRoutes, mockHazards, safetyFilters, CENTER_COORDS, mockLightingZones, mockCrowdZones, mockEmergencyServices } from "@/data/mockData";
-import { RouteOption, SafetyFilter } from "@/data/mockData";
+import HazardReportDialog from "@/components/HazardReportDialog";
+import { mockRoutes, safetyFilters, CENTER_COORDS, mockLightingZones, mockCrowdZones, mockEmergencyServices } from "@/data/mockData";
+import { RouteOption, SafetyFilter, Hazard } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Layers, User, Phone, MapPin, Moon } from "lucide-react";
-import { authHelpers, routeHelpers } from "@/lib/supabase";
+import { authHelpers, routeHelpers, hazardHelpers } from "@/lib/supabase";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { generateDirections, calculateDistance, calculateETA, interpolateCoordinates, getAnimationSpeed } from "@/utils/navigationUtils";
@@ -37,6 +38,7 @@ const Home = () => {
   const [nightMode, setNightMode] = useState(false);
   const [fromLocation, setFromLocation] = useState('');
   const [toLocation, setToLocation] = useState('');
+  const [hazards, setHazards] = useState<Hazard[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -75,6 +77,47 @@ const Home = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  // Fetch community hazards
+  useEffect(() => {
+    const fetchHazards = async () => {
+      const { data, error } = await hazardHelpers.getPublicHazards();
+      if (!error && data) {
+        // Transform database hazards to match the Hazard interface
+        const transformedHazards: Hazard[] = data.map((h) => ({
+          id: h.id,
+          type: h.hazard_type,
+          location: [h.location_lat, h.location_lng],
+          severity: h.severity as 'high' | 'medium' | 'low',
+          description: h.description,
+          reportedAt: new Date(h.created_at).toLocaleDateString(),
+        }));
+        setHazards(transformedHazards);
+      }
+    };
+
+    fetchHazards();
+
+    // Set up realtime subscription for new hazards
+    const channel = supabase
+      .channel('hazard-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'hazard_reports',
+        },
+        () => {
+          fetchHazards();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleSearch = (from: string, to: string) => {
     setFromLocation(from);
@@ -623,9 +666,9 @@ const Home = () => {
               {/* Map View */}
               <div className="sticky top-24 h-[calc(100vh-350px)] min-h-[400px]">
                 <MapView
-                  routes={routes}
-                  hazards={mockHazards}
-                  selectedRoute={selectedRoute}
+            routes={routes}
+            hazards={hazards}
+            selectedRoute={selectedRoute}
                   center={CENTER_COORDS}
                   lightingZones={nightMode ? mockLightingZones : []}
                   crowdZones={nightMode ? mockCrowdZones : []}
