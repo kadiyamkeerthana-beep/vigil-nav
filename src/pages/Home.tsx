@@ -10,6 +10,7 @@ import SpeedControl, { SpeedMode } from "@/components/SpeedControl";
 import NavigationDashboard from "@/components/NavigationDashboard";
 import TurnByTurnDirections, { Direction } from "@/components/TurnByTurnDirections";
 import HazardReportDialog from "@/components/HazardReportDialog";
+import VoiceAssistant from "@/components/VoiceAssistant";
 import { mockRoutes, safetyFilters, CENTER_COORDS, mockLightingZones, mockCrowdZones, mockEmergencyServices } from "@/data/mockData";
 import { RouteOption, SafetyFilter, Hazard } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
@@ -683,6 +684,13 @@ const Home = () => {
           </div>
         )}
       </main>
+
+      {/* Voice Assistant - shown prominently during night mode */}
+      <VoiceAssistant 
+        isNightMode={nightMode}
+        currentLocation={currentPosition || undefined}
+        isNavigating={isNavigating}
+      />
 
       <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
         <EmergencyButton 
