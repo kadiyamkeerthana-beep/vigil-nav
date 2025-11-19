@@ -684,10 +684,34 @@ const Home = () => {
         )}
       </main>
 
-      <EmergencyButton 
-        userId={user?.id} 
-        currentLocation={currentPosition || (selectedRoute ? selectedRoute.coordinates[0] : CENTER_COORDS)}
-      />
+      <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
+        <EmergencyButton 
+          userId={user?.id} 
+          currentLocation={currentPosition || (selectedRoute ? selectedRoute.coordinates[0] : CENTER_COORDS)}
+        />
+        {(isNavigating || selectedRoute) && (
+          <HazardReportDialog
+            userId={user?.id}
+            currentLocation={currentPosition || (selectedRoute ? selectedRoute.coordinates[0] : null)}
+            onHazardReported={() => {
+              // Refetch hazards after reporting
+              hazardHelpers.getPublicHazards().then(({ data, error }) => {
+                if (!error && data) {
+                  const transformedHazards: Hazard[] = data.map((h) => ({
+                    id: h.id,
+                    type: h.hazard_type,
+                    location: [h.location_lat, h.location_lng],
+                    severity: h.severity as 'high' | 'medium' | 'low',
+                    description: h.description,
+                    reportedAt: new Date(h.created_at).toLocaleDateString(),
+                  }));
+                  setHazards(transformedHazards);
+                }
+              });
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 };

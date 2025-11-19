@@ -28,10 +28,11 @@ export interface RouteOption {
 
 export interface Hazard {
   id: string;
-  type: 'accident' | 'construction' | 'crime' | 'dark' | 'crowded';
+  type: 'accident' | 'construction' | 'crime' | 'dark' | 'crowded' | 'pothole' | 'flooding' | 'debris' | 'poor-lighting' | 'unsafe-area' | 'other' | string;
   location: [number, number];
   severity: 'low' | 'medium' | 'high';
   description: string;
+  reportedAt?: string;
   timestamp?: string;
 }
 
